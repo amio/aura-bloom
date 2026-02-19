@@ -354,9 +354,9 @@ function drawBlade(blade, colorA, colorB, alpha, W, H) {
   // ─── Edge highlight — razor-thin silver rim light ───
   const hGrad = ctx.createLinearGradient(px, py, tx, ty);
   hGrad.addColorStop(0.00, 'rgba(255,255,255,0)');
-  hGrad.addColorStop(0.10, `rgba(255,255,255,${alpha * 0.25})`);
+  hGrad.addColorStop(0.10, `rgba(255,255,255,${alpha * 0.35})`);
   hGrad.addColorStop(0.45, `rgba(255,255,255,${alpha * 0.50})`);
-  hGrad.addColorStop(0.80, `rgba(255,255,255,${alpha * 0.15})`);
+  hGrad.addColorStop(0.80, `rgba(255,255,255,${alpha * 0.25})`);
   hGrad.addColorStop(1.00, 'rgba(255,255,255,0)');
 
   ctx.beginPath();
