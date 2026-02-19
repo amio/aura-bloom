@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Aurora Themes</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body, html {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #000;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  }
+  canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+  }
+  .btn-group {
+    position: fixed;
+    bottom: 40px; left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 8px;
+    z-index: 100;
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 50px;
+    padding: 6px;
+  }
+  .btn {
+    position: relative;
+    padding: 10px 20px;
+    border: none; border-radius: 40px;
+    cursor: pointer;
+    font-size: 12.5px; font-weight: 500;
+    letter-spacing: 0.3px;
+    color: rgba(255,255,255,0.45);
+    background: transparent;
+    transition: color 0.3s;
+    white-space: nowrap;
+    z-index: 1;
+  }
+  .btn:hover { color: rgba(255,255,255,0.8); }
+  .btn.active { color: #fff; }
+  .indicator {
+    position: absolute;
+    height: calc(100% - 12px); top: 6px;
+    border-radius: 40px;
+    transition: left 0.45s cubic-bezier(0.34,1.56,0.64,1),
+                width 0.45s cubic-bezier(0.34,1.56,0.64,1),
+                background 0.6s ease;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .theme-label {
+    position: fixed; top: 36px; left: 50%;
+    transform: translateX(-50%);
+    color: rgba(255,255,255,0.22);
+    font-size: 11px; letter-spacing: 4px;
+    text-transform: uppercase;
+    pointer-events: none; user-select: none;
+    transition: opacity 0.4s;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+<div class="theme-label" id="label">Blossom</div>
+<div class="btn-group" id="btnGroup">
+  <div class="indicator" id="indicator"></div>
+  <button class="btn active" data-theme="0">Blossom</button>
+  <button class="btn" data-theme="1">Vortex</button>
+  <button class="btn" data-theme="2">Tidal</button>
+  <button class="btn" data-theme="3">Rift</button>
+  <button class="btn" data-theme="4">Fold</button>
+  <button class="btn" data-theme="5">Prism</button>
+</div>
+
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+// ═══════════════════════════════════════════════════
+//  工具函数
+// ═══════════════════════════════════════════════════
+function hexToRgb(hex) {
+  return {
+    r: parseInt(hex.slice(1,3),16),
+    g: parseInt(hex.slice(3,5),16),
+    b: parseInt(hex.slice(5,7),16),
+  };
+}
+function lerpColor(a, b, t) {
+  const ca = hexToRgb(a), cb = hexToRgb(b);
+  const r = Math.round(ca.r+(cb.r-ca.r)*t);
+  const g = Math.round(ca.g+(cb.g-ca.g)*t);
+  const bv= Math.round(ca.b+(cb.b-ca.b)*t);
+  return `#${[r,g,bv].map(v=>v.toString(16).padStart(2,'0')).join('')}`;
+}
+function hexToRgba(hex, a) {
+  const {r,g,b}=hexToRgb(hex);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function lerp(a,b,t){ return a+(b-a)*t; }
+function easeInOut(x){ return x<0.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2; }
+function easeOut(x){ return 1-Math.pow(1-x,3); }
+
+// ═══════════════════════════════════════════════════
+//  主题定义
+// ═══════════════════════════════════════════════════
+const THEMES = [
+
+  // ─── 0. Blossom ─── 花苞：中段饱满，顶部微微收口
+  {
+    name: 'Blossom',
+    bg: ['#0d0020','#1a0438','#060010'],
+    indicatorColor: 'rgba(180,60,255,0.5)',
+    layers: [
+      // 每层: { type, ...params }
+      // type='petal' 花苞型花瓣
+      {
+        type:'petal',
+        count: 7,
+        colors: ['#cc00ff','#ff00cc','#ff44dd','#9900ee','#ee00aa','#bb00ff','#ff22ee'],
+        darkColors:['#2a0055','#330011','#220033','#1a0044','#280022','#200040','#2a0011'],
+        spreadAngle: 0.72,   // 扇形张角（PI 的倍数）
+        pivotY: 1.08,        // 底部锚点（归一化 canvas 高度）
+        // 花苞控制参数
+        bulgeT: 0.52,        // 最宽处在脊线上的位置（0=底,1=顶）
+        bulgeW: 0.38,        // 最宽处宽度（归一化 canvas 宽度）
+        tipW:   0.06,        // 顶端宽度（不完全收拢）
+        baseW:  0.01,        // 底部锚点宽度
+        tipReach: -0.08,     // 顶端 Y（超出画布上边缘）
+        breathAmp: 0.04,     // 呼吸摆动幅度
+        alpha: 0.88,
+      }
+    ],
+    blendMode: 'screen',
+  },
+
+  // ─── 1. Vortex ─── 漩涡：不对称扭曲螺旋臂
+  {
+    name: 'Vortex',
+    bg: ['#000818','#001030','#00050f'],
+    indicatorColor: 'rgba(0,180,255,0.5)',
+    layers: [
+      {
+        type: 'spiral',
+        count: 5,
+        colors:['#00ccff','#0066ff','#00ffee','#0044cc','#44ddff'],
+        darkColors:['#001133','#000822','#001122','#000a1a','#001828'],
+        // 每条螺旋臂的独立参数（不对称核心）
+        arms: [
+          { startX:0.50, startY:1.05, twist:-0.55, reach:0.10, lean:-0.20 },
+          { startX:0.50, startY:1.05, twist:-0.25, reach:-0.05, lean: 0.10 },
+          { startX:0.50, startY:1.05, twist: 0.10, reach: 0.00, lean: 0.35 },
+          { startX:0.50, startY:1.05, twist: 0.40, reach: 0.08, lean: 0.55 },
+          { startX:0.50, startY:1.05, twist: 0.70, reach: 0.18, lean: 0.72 },
+        ],
+        width: 0.18,
+        alpha: 0.82,
+        breathAmp: 0.05,
+      }
+    ],
+    blendMode: 'screen',
+  },
+
+  // ─── 2. Tidal ─── 潮汐：水平横向大波浪，不对称叠层
+  {
+    name: 'Tidal',
+    bg: ['#000d10','#001520','#000508'],
+    indicatorColor: 'rgba(0,220,160,0.5)',
+    layers: [
+      {
+        type: 'wave',
+        count: 5,
+        colors:['#00ffaa','#00ddff','#00cc88','#22ffcc','#00aaee'],
+        darkColors:['#002211','#001122','#001a0e','#003322','#001433'],
+        // 每条波浪的基础 Y 位置（归一化）和振幅
+        waves: [
+          { baseY:0.55, amp:0.22, phase:0.0,  freq:0.9,  thick:0.28 },
+          { baseY:0.50, amp:0.18, phase:1.2,  freq:1.1,  thick:0.22 },
+          { baseY:0.62, amp:0.25, phase:2.5,  freq:0.7,  thick:0.32 },
+          { baseY:0.44, amp:0.15, phase:0.8,  freq:1.4,  thick:0.18 },
+          { baseY:0.70, amp:0.20, phase:3.5,  freq:0.85, thick:0.26 },
+        ],
+        alpha: 0.80,
+        speed: 0.00035,
+      }
+    ],
+    blendMode: 'screen',
+  },
+
+  // ─── 3. Rift ─── 裂缝：从中央向外撕裂的锐利光刃，不对称
+  {
+    name: 'Rift',
+    bg: ['#0f0000','#1a0000','#050000'],
+    indicatorColor: 'rgba(255,60,60,0.5)',
+    layers: [
+      {
+        type: 'rift',
+        count: 6,
+        colors:['#ff2200','#ff6600','#ffaa00','#ff0044','#ff4400','#ffcc00'],
+        darkColors:['#1a0000','#220800','#331500','#150005','#1a0800','#2a1800'],
+        // 每条裂缝：从画布底部某点"刺穿"到顶部，带有侧向偏移（不对称）
+        rifts: [
+          { x0:0.50, x1:0.38, lean:-0.10, w0:0.005, w1:0.09 },
+          { x0:0.50, x1:0.55, lean: 0.08, w0:0.004, w1:0.07 },
+          { x0:0.50, x1:0.28, lean:-0.18, w0:0.003, w1:0.12 },
+          { x0:0.50, x1:0.65, lean: 0.15, w0:0.003, w1:0.10 },
+          { x0:0.50, x1:0.20, lean:-0.25, w0:0.002, w1:0.14 },
+          { x0:0.50, x1:0.72, lean: 0.22, w0:0.002, w1:0.11 },
+        ],
+        alpha: 0.90,
+        breathAmp: 0.025,
+      }
+    ],
+    blendMode: 'screen',
+  },
+
+  // ─── 4. Fold ─── 折叠：对称的蝴蝶/布料折叠形态
+  {
+    name: 'Fold',
+    bg: ['#080012','#0e001e','#030008'],
+    indicatorColor: 'rgba(200,120,255,0.5)',
+    layers: [
+      {
+        type: 'fold',
+        count: 4,   // 折叠层数（左右各一份，对称）
+        colors:['#bb44ff','#ff88ff','#8800ee','#dd66ff'],
+        darkColors:['#110022','#220033','#0a0018','#1a0028'],
+        // 对称轴在 x=0.5，每层向两侧展开
+        folds: [
+          { spread:0.12, peakY:0.30, baseY:0.92, cpY:0.55, thick:0.14 },
+          { spread:0.25, peakY:0.20, baseY:0.95, cpY:0.50, thick:0.18 },
+          { spread:0.38, peakY:0.35, baseY:0.98, cpY:0.60, thick:0.22 },
+          { spread:0.48, peakY:0.50, baseY:1.02, cpY:0.70, thick:0.20 },
+        ],
+        alpha: 0.85,
+        breathAmp: 0.03,
+      }
+    ],
+    blendMode: 'screen',
+  },
+
+  // ─── 5. Prism ─── 棱镜：多段折线光带，带色散效果
+  {
+    name: 'Prism',
+    bg: ['#030010','#080020','#010008'],
+    indicatorColor: 'rgba(120,200,255,0.5)',
+    layers: [
+      {
+        type: 'prism',
+        count: 6,
+        // 棱镜色散：彩虹序列
+        colors:['#ff0066','#ff6600','#ffee00','#00ff88','#0088ff','#aa00ff'],
+        darkColors:['#110005','#110800','#111000','#001108','#000a11','#080011'],
+        // 每条光带从左入射，经折射到右侧出射（不对称折线）
+        beams: [
+          { inX:0.0,  inY:0.20, midX:0.42, midY:0.48, outX:1.0, outY:0.10, w:0.055 },
+          { inX:0.0,  inY:0.35, midX:0.45, midY:0.52, outX:1.0, outY:0.28, w:0.048 },
+          { inX:0.0,  inY:0.50, midX:0.48, midY:0.55, outX:1.0, outY:0.45, w:0.058 },
+          { inX:0.0,  inY:0.62, midX:0.50, midY:0.58, outX:1.0, outY:0.60, w:0.052 },
+          { inX:0.0,  inY:0.74, midX:0.52, midY:0.62, outX:1.0, outY:0.72, w:0.060 },
+          { inX:0.0,  inY:0.85, midX:0.55, midY:0.68, outX:1.0, outY:0.85, w:0.045 },
+        ],
+        alpha: 0.80,
+        breathAmp: 0.018,
+      }
+    ],
+    blendMode: 'screen',
+  },
+];
+
+// ═══════════════════════════════════════════════════
+//  状态
+// ═══════════════════════════════════════════════════
+let currentIdx = 0, targetIdx = 0;
+let transP = 1;   // transition progress 0→1
+let time   = 0;
+
+// ═══════════════════════════════════════════════════
+//  Resize
+// ═══════════════════════════════════════════════════
+function resize() {
+  canvas.width  = window.innerWidth  * devicePixelRatio;
+  canvas.height = window.innerHeight * devicePixelRatio;
+  canvas.style.width  = window.innerWidth  + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+}
+
+// ═══════════════════════════════════════════════════
+//  背景
+// ═══════════════════════════════════════════════════
+function drawBg(colors) {
+  const W=canvas.width, H=canvas.height;
+  ctx.globalCompositeOperation='source-over';
+  ctx.globalAlpha=1;
+  const g=ctx.createRadialGradient(W*.5,H*.42,0,W*.5,H*.5,W*.9);
+  g.addColorStop(0, colors[1]);
+  g.addColorStop(.5, colors[0]);
+  g.addColorStop(1,  colors[2]);
+  ctx.fillStyle=g;
+  ctx.fillRect(0,0,W,H);
+}
+
+// ═══════════════════════════════════════════════════
+//  暗角
+// ═══════════════════════════════════════════════════
+function drawVignette() {
+  const W=canvas.width, H=canvas.height;
+  ctx.globalCompositeOperation='source-over';
+  ctx.globalAlpha=1;
+  const v=ctx.createRadialGradient(W*.5,H*.48,H*.05,W*.5,H*.5,H*.82);
+  v.addColorStop(0,'rgba(0,0,0,0)');
+  v.addColorStop(1,'rgba(0,0,0,0.72)');
+  ctx.fillStyle=v;
+  ctx.fillRect(0,0,W,H);
+}
+
+// ═══════════════════════════════════════════════════
+//  底部辉光
+// ═══════════════════════════════════════════════════
+function drawGlow(color) {
+  const W=canvas.width, H=canvas.height;
+  const g=ctx.createRadialGradient(W*.5,H*1.02,0,W*.5,H*1.02,W*.5);
+  g.addColorStop(0, hexToRgba(color,.30));
+  g.addColorStop(.6, hexToRgba(color,.05));
+  g.addColorStop(1,  hexToRgba(color,0));
+  ctx.globalCompositeOperation='screen';
+  ctx.globalAlpha=1;
+  ctx.fillStyle=g;
+  ctx.fillRect(0,H*.45,W,H*.6);
+}
+
+// ═══════════════════════════════════════════════════
+//  形状绘制器
+// ═══════════════════════════════════════════════════
+
+// ── Blossom 花苞 ──────────────────────────────────
+function drawPetalLayer(layer, blend, t) {
+  const W=canvas.width, H=canvas.height;
+  const {count,colors,darkColors,spreadAngle,pivotY,
+         bulgeT,bulgeW,tipW,baseW,tipReach,breathAmp,alpha} = layer;
+
+  ctx.globalCompositeOperation = blend;
+
+  for(let i=0;i<count;i++){
+    const norm = count===1 ? 0.5 : i/(count-1);
+    const angle = (-spreadAngle/2 + norm*spreadAngle) * Math.PI;
+
+    // 呼吸：各花瓣独立相位
+    const bx = Math.sin(t*0.00038 + norm*3.1) * breathAmp;
+    const by = Math.cos(t*0.00029 + norm*2.3) * breathAmp * 0.6;
+
+    // 脊线：底部锚点 → 顶端落点
+    const px0 = 0.5, py0 = pivotY;
+    const px1 = 0.5 + Math.sin(angle+bx*Math.PI)*0.52 + bx;
+    const py1 = tipReach + by;
+
+    // 花苞形状：用4段控制点描述宽度包络
+    // 我们沿脊线取4个截面，每个截面定义宽度
+    // t=0(底部) t=bulgeT(最宽) t=1(顶端)
+
+    // 把脊线映射到实际坐标
+    function spinePoint(s) {
+      // 三次插值脊线（带一点弯曲）
+      const cpx = 0.5 + Math.sin(angle*0.5+bx)*0.28;
+      const cpy = 0.55 + by;
+      // quadratic贝塞尔
+      const x = (1-s)*(1-s)*px0 + 2*(1-s)*s*cpx + s*s*px1;
+      const y = (1-s)*(1-s)*py0 + 2*(1-s)*s*cpy + s*s*py1;
+      return {x:x*W, y:y*H};
+    }
+
+    function spineNormal(s) {
+      const ds = 0.01;
+      const a = spinePoint(Math.max(0,s-ds));
+      const b = spinePoint(Math.min(1,s+ds));
+      const dx=b.x-a.x, dy=b.y-a.y, len=Math.hypot(dx,dy)||1;
+      return {nx:-dy/len, ny:dx/len};
+    }
+
+    // 宽度包络（花苞：底部细→中段鼓胀→顶部微收）
+    function halfWidth(s) {
+      // 用平滑曲线：底部→bulge→tip
+      let w;
+      if(s < bulgeT) {
+        // 底部到最宽处：快速扩张（easeOut）
+        const local = s / bulgeT;
+        const ease  = 1 - Math.pow(1-local, 1.8);
+        w = lerp(baseW, bulgeW, ease);
+      } else {
+        // 最宽处到顶端：缓慢收拢（easeIn，但不收拢到0）
+        const local = (s - bulgeT) / (1 - bulgeT);
+        const ease  = local * local * (2 - local); // smoothstep
+        w = lerp(bulgeW, tipW, ease);
+      }
+      return w * W * 0.5;
+    }
+
+    // 采样 N 个截面，构建左右轮廓点
+    const SEG = 20;
+    const leftPts=[], rightPts=[];
+    for(let k=0;k<=SEG;k++){
+      const s  = k/SEG;
+      const sp = spinePoint(s);
+      const sn = spineNormal(s);
+      const hw = halfWidth(s);
+      leftPts.push( {x: sp.x + sn.nx*hw, y: sp.y + sn.ny*hw} );
+      rightPts.push({x: sp.x - sn.nx*hw, y: sp.y - sn.ny*hw} );
+    }
+
+    // 绘制路径
+    ctx.beginPath();
+    ctx.moveTo(leftPts[0].x, leftPts[0].y);
+    for(let k=1;k<=SEG;k++) ctx.lineTo(leftPts[k].x, leftPts[k].y);
+    for(let k=SEG;k>=0;k--) ctx.lineTo(rightPts[k].x, rightPts[k].y);
+    ctx.closePath();
+
+    // 沿脊线的线性渐变
+    const sp0 = spinePoint(0), sp1 = spinePoint(1);
+    const grad = ctx.createLinearGradient(sp0.x,sp0.y,sp1.x,sp1.y);
+    grad.addColorStop(0,   hexToRgba(darkColors[i%darkColors.length], 0));
+    grad.addColorStop(0.08,hexToRgba(darkColors[i%darkColors.length], alpha*0.5));
+    grad.addColorStop(0.35,hexToRgba(colors[i%colors.length], alpha));
+    grad.addColorStop(0.70,hexToRgba(colors[i%colors.length], alpha*0.75));
+    grad.addColorStop(1.0, hexToRgba(colors[i%colors.length], alpha*0.2));
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle   = grad;
+    ctx.fill();
+  }
+}
+
+// ── Vortex 漩涡螺旋臂 ─────────────────────────────
+function drawSpiralLayer(layer, blend, t) {
+  const W=canvas.width, H=canvas.height;
+  const {arms,colors,darkColors,width,alpha,breathAmp} = layer;
+
+  ctx.globalCompositeOperation = blend;
+
+  arms.forEach((arm,i)=>{
+    const breath = Math.sin(t*0.00042+i*1.7)*breathAmp;
+
+    const x0=arm.startX*W, y0=arm.startY*H;
+    // 螺旋臂终点：twist 控制横向扭转量，reach 控制纵向到达高度
+    const x1=(arm.lean + arm.twist*0.3 + breath)*W;
+    const y1=(arm.reach - 0.05 + Math.cos(t*0.00031+i)*breathAmp*0.5)*H;
+
+    // 控制点：制造S形弯曲
+    const cp1x=(arm.startX + arm.twist*0.4 - arm.lean*0.2)*W;
+    const cp1y=(0.75 + breath*0.5)*H;
+    const cp2x=(arm.lean*0.5 + arm.twist*0.15 + breath*0.3)*W;
+    const cp2y=(0.35 + arm.reach*0.3)*H;
+
+    const hw = width*W*0.5;
+
+    // 法线偏移生成带宽路径
+    ctx.beginPath();
+    // 简化：画粗描边
+    ctx.moveTo(x0,y0);
+    ctx.bezierCurveTo(cp1x,cp1y,cp2x,cp2y,x1,y1);
+
+    const grad = ctx.createLinearGradient(x0,y0,x1,y1);
+    grad.addColorStop(0,   hexToRgba(darkColors[i], 0));
+    grad.addColorStop(0.1, hexToRgba(colors[i], alpha*0.6));
+    grad.addColorStop(0.5, hexToRgba(colors[i], alpha));
+    grad.addColorStop(1.0, hexToRgba(colors[i], alpha*0.1));
+
+    ctx.globalAlpha  = 1;
+    ctx.strokeStyle  = grad;
+    ctx.lineWidth    = hw * (1 + Math.sin(t*0.0005+i)*0.15);
+    ctx.lineCap      = 'round';
+    ctx.stroke();
+  });
+}
+
+// ── Tidal 潮汐波浪 ─────────────────────────────────
+function drawWaveLayer(layer, blend, t) {
+  const W=canvas.width, H=canvas.height;
+  const {waves,colors,darkColors,alpha,speed} = layer;
+  ctx.globalCompositeOperation = blend;
+
+  waves.forEach((wave,i)=>{
+    const STEPS = 80;
+    const halfH = wave.thick * H * 0.5;
+    const topPts=[], botPts=[];
+
+    for(let k=0;k<=STEPS;k++){
+      const xRatio = k/STEPS;
+      const x = xRatio*W;
+      // 上下两条波浪边缘（相位略有差异产生"厚度呼吸"）
+      const yc = (wave.baseY + Math.sin(xRatio*Math.PI*2*wave.freq + t*speed + wave.phase)*wave.amp)*H;
+      const dh = halfH * (0.85 + Math.sin(xRatio*Math.PI*1.5+t*speed*0.7+wave.phase)*0.15);
+      topPts.push({x, y:yc-dh});
+      botPts.push({x, y:yc+dh});
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(topPts[0].x,topPts[0].y);
+    for(let k=1;k<=STEPS;k++) ctx.lineTo(topPts[k].x,topPts[k].y);
+    for(let k=STEPS;k>=0;k--) ctx.lineTo(botPts[k].x,botPts[k].y);
+    ctx.closePath();
+
+    const gy = waves[i].baseY*H;
+    const grad = ctx.createLinearGradient(0,gy-halfH,0,gy+halfH);
+    grad.addColorStop(0,   hexToRgba(colors[i], 0));
+    grad.addColorStop(0.2, hexToRgba(colors[i], alpha*0.5));
+    grad.addColorStop(0.5, hexToRgba(colors[i], alpha));
+    grad.addColorStop(0.8, hexToRgba(colors[i], alpha*0.5));
+    grad.addColorStop(1,   hexToRgba(colors[i], 0));
+
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = grad;
+    ctx.fill();
+  });
+}
+
+// ── Rift 光刃裂缝 ──────────────────────────────────
+function drawRiftLayer(layer, blend, t) {
+  const W=canvas.width, H=canvas.height;
+  const {rifts,colors,darkColors,alpha,breathAmp} = layer;
+  ctx.globalCompositeOperation = blend;
+
+  rifts.forEach((rift,i)=>{
+    const breath = Math.sin(t*0.00044+i*2.1)*breathAmp;
+
+    const x0 = rift.x0*W, y0 = H*1.01;
+    const x1 = (rift.x1 + breath)*W, y1 = -H*0.05;
+
+    // 裂缝底部极窄，向上急速扩张（反向花苞）
+    const SEG=24;
+    const leftPts=[], rightPts=[];
+
+    for(let k=0;k<=SEG;k++){
+      const s = k/SEG;
+      // 裂缝中线（带微弯）
+      const lean = rift.lean * Math.sin(s*Math.PI) * W;
+      const mx = lerp(x0,x1,s) + lean;
+      const my = lerp(y0,y1,s);
+
+      // 宽度：底部rift.w0，上方扩张到rift.w1（带轻微抖动）
+      const wRaw = lerp(rift.w0, rift.w1, easeOut(s));
+      const hw   = wRaw*W*0.5 * (1+Math.sin(s*Math.PI*4+t*0.001)*0.08);
+
+      leftPts.push( {x:mx-hw, y:my} );
+      rightPts.push({x:mx+hw, y:my} );
+    }
+
+    ctx.beginPath();
+    ctx.moveTo(leftPts[0].x, leftPts[0].y);
+    for(let k=1;k<=SEG;k++) ctx.lineTo(leftPts[k].x, leftPts[k].y);
+    for(let k=SEG;k>=0;k--) ctx.lineTo(rightPts[k].x, rightPts[k].y);
+    ctx.closePath();
+
+    const grad = ctx.createLinearGradient(x0,y0,x1,y1);
+    grad.addColorStop(0,   hexToRgba(colors[i], 0));
+    grad.addColorStop(0.05,hexToRgba(colors[i], alpha*0.7));
+    grad.addColorStop(0.4, hexToRgba(colors[i], alpha));
+    grad.addColorStop(0.8, hexToRgba(colors[i], alpha*0.5));
+    grad.addColorStop(1.0, hexToRgba(colors[i], alpha*0.1));
+
+    ctx.globalAlpha=1;
+    ctx.fillStyle=grad;
+    ctx.fill();
+  });
+}
+
+// ── Fold 布料折叠（对称） ───────────────────────────
+function drawFoldLayer(layer, blend, t) {
+  const W=canvas.width, H=canvas.height;
+  const {folds,colors,darkColors,alpha,breathAmp} = layer;
+  ctx.globalCompositeOperation = blend;
+
+  folds.forEach((fold,i)=>{
+    const breath = Math.sin(t*0.00036+i*1.4)*breathAmp;
+
+    // 对称：左右各画一片
+    [-1,1].forEach(side=>{
+      const cx = 0.5*W;                          // 对称轴
+      const px = (0.5 + side*fold.spread)*W;     // 展开端点
+      const peakY = (fold.peakY + breath)*H;
+      const baseY = fold.baseY*H;
+      const cpY   = fold.cpY*H;
+      const hw    = fold.thick*W*0.5;
+
+      // 外轮廓：从底部中心 → 弧形峰顶 → 底部展开点
+      const SEG=30;
+      const outerPts=[], innerPts=[];
+
+      for(let k=0;k<=SEG;k++){
+        const s=k/SEG;
+        // 外边缘贝塞尔
+        const ox = lerp(cx, px, easeInOut(s));
+        const oy = baseY + (peakY-baseY)*Math.sin(s*Math.PI)*(0.9+Math.sin(s*Math.PI*2+t*0.0003)*0.1);
+        // 内边缘（偏移 hw，制造"布料厚度"）
+        const ix = ox + side*hw*Math.sin(s*Math.PI)*0.6;
+        const iy = oy + hw*0.4;
+        outerPts.push({x:ox,y:oy});
+        innerPts.push({x:ix,y:iy});
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(outerPts[0].x,outerPts[0].y);
+      outerPts.forEach(p=>ctx.lineTo(p.x,p.y));
+      for(let k=SEG;k>=0;k--) ctx.lineTo(innerPts[k].x,innerPts[k].y);
+      ctx.closePath();
+
+      const grad = ctx.createLinearGradient(cx,peakY,px,baseY);
+      grad.addColorStop(0,   hexToRgba(colors[i], alpha));
+      grad.addColorStop(0.4, hexToRgba(colors[i], alpha*0.8));
+      grad.addColorStop(0.8, hexToRgba(darkColors[i], alpha*0.3));
+      grad.addColorStop(1,   hexToRgba(darkColors[i], 0));
+
+      ctx.globalAlpha=1;
+      ctx.fillStyle=grad;
+      ctx.fill();
+    });
+  });
+}
+
+// ── Prism 棱镜光带 ─────────────────────────────────
+function drawPrismLayer(layer, blend, t) {
+  const W=canvas.width, H=canvas.height;
+  const {beams,colors,darkColors,alpha,breathAmp} = layer;
+  ctx.globalCompositeOperation = blend;
+
+  beams.forEach((beam,i)=>{
+    const breath = Math.sin(t*0.00040+i*1.9)*breathAmp;
+
+    const x0=beam.inX*W,  y0=(beam.inY+breath)*H;
+    const xm=beam.midX*W, ym=(beam.midY+breath*0.5)*H;
+    const x1=beam.outX*W, y1=(beam.outY-breath*0.3)*H;
+    const hw=beam.w*W*0.5;
+
+    // 两段折线光带：入射段 + 出射段，在折点处"折断"
+    // 入射段
+    function drawSegment(ax,ay,bx,by,col,dcol){
+      const dx=bx-ax,dy=by-ay,len=Math.hypot(dx,dy)||1;
+      const nx=-dy/len*hw, ny=dx/len*hw;
+      ctx.beginPath();
+      ctx.moveTo(ax+nx,ay+ny);
+      ctx.lineTo(bx+nx,by+ny);
+      ctx.lineTo(bx-nx,by-ny);
+      ctx.lineTo(ax-nx,ay-ny);
+      ctx.closePath();
+      const g=ctx.createLinearGradient(ax,ay,bx,by);
+      g.addColorStop(0,   hexToRgba(col, 0));
+      g.addColorStop(0.1, hexToRgba(col, alpha));
+      g.addColorStop(0.9, hexToRgba(col, alpha));
+      g.addColorStop(1,   hexToRgba(col, 0));
+      ctx.globalAlpha=1;
+      ctx.fillStyle=g;
+      ctx.fill();
+    }
+
+    drawSegment(x0,y0,xm,ym, colors[i], darkColors[i]);
+    drawSegment(xm,ym,x1,y1, colors[i], darkColors[i]);
+
+    // 折点高光
+    const hg=ctx.createRadialGradient(xm,ym,0,xm,ym,hw*2.5);
+    hg.addColorStop(0, hexToRgba(colors[i], alpha*0.9));
+    hg.addColorStop(1, hexToRgba(colors[i], 0));
+    ctx.globalAlpha=1;
+    ctx.globalCompositeOperation=blend;
+    ctx.fillStyle=hg;
+    ctx.beginPath();
+    ctx.arc(xm,ym,hw*2.5,0,Math.PI*2);
+    ctx.fill();
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  过渡时的 offscreen snapshot（淡出淡入）
+// ═══════════════════════════════════════════════════
+let offscreenFrom = null;
+let offscreenTo   = null;
+let captureFrom   = true;
+
+// ═══════════════════════════════════════════════════
+//  绘制单个主题
+// ═══════════════════════════════════════════════════
+function renderTheme(theme, t) {
+  drawBg(theme.bg);
+  const layer = theme.layers[0];
+  switch(layer.type){
+    case 'petal':  drawPetalLayer(layer, theme.blendMode, t); break;
+    case 'spiral': drawSpiralLayer(layer, theme.blendMode, t); break;
+    case 'wave':   drawWaveLayer(layer, theme.blendMode, t); break;
+    case 'rift':   drawRiftLayer(layer, theme.blendMode, t); break;
+    case 'fold':   drawFoldLayer(layer, theme.blendMode, t); break;
+    case 'prism':  drawPrismLayer(layer, theme.blendMode, t); break;
+  }
+  drawGlow(theme.layers[0].colors[Math.floor(theme.layers[0].colors.length/2)]);
+  drawVignette();
+}
+
+// ═══════════════════════════════════════════════════
+//  主循环（切换时：新主题淡入，旧主题淡出）
+// ═══════════════════════════════════════════════════
+const W2 = ()=>canvas.width, H2=()=>canvas.height;
+
+// 离屏 canvas 用于过渡截图
+const oc = document.createElement('canvas');
+const octx = oc.getContext('2d');
+
+function render() {
+  requestAnimationFrame(render);
+  time += 1;
+
+  const W=canvas.width, H=canvas.height;
+
+  if(transP >= 1){
+    // 正常渲染目标主题
+    renderTheme(THEMES[targetIdx], time);
+  } else {
+    // 过渡：目标主题渲染到主 canvas
+    renderTheme(THEMES[targetIdx], time);
+
+    // 将旧主题（offscreen）叠加淡出
+    if(offscreenFrom){
+      const fadeOut = 1 - easeInOut(transP);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = fadeOut;
+      ctx.drawImage(offscreenFrom, 0, 0);
+      ctx.globalAlpha = 1;
+    }
+
+    transP = Math.min(1, transP + 0.022);
+    if(transP >= 1) currentIdx = targetIdx;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+//  按钮交互
+// ═══════════════════════════════════════════════════
+const buttons    = document.querySelectorAll('.btn');
+const indicator  = document.getElementById('indicator');
+const labelEl    = document.getElementById('label');
+
+const indicatorColors = THEMES.map(th=>th.indicatorColor);
+
+function moveIndicator(btn, idx){
+  const gr = document.getElementById('btnGroup').getBoundingClientRect();
+  const br = btn.getBoundingClientRect();
+  indicator.style.left       = (br.left - gr.left) + 'px';
+  indicator.style.width      = br.width + 'px';
+  indicator.style.background = indicatorColors[idx];
+}
+
+buttons.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const idx = parseInt(btn.dataset.theme);
+    if(idx === targetIdx && transP >= 1) return;
+
+    // 截取当前帧作为 fromSnapshot
+    oc.width = canvas.width; oc.height = canvas.height;
+    octx.drawImage(canvas,0,0);
+    offscreenFrom = oc;
+
+    currentIdx = targetIdx;
+    targetIdx  = idx;
+    transP     = 0;
+
+    buttons.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    labelEl.textContent = THEMES[idx].name;
+    moveIndicator(btn, idx);
+  });
+});
+
+window.addEventListener('resize', resize);
+window.addEventListener('load', ()=>{
+  moveIndicator(buttons[0], 0);
+});
+
+resize();
+render();
+</script>
+</body>
+</html>
