@@ -350,7 +350,12 @@ function drawBlade(blade, colorA, colorB, alpha, W, H) {
   const ny =  dx;
 
   // Half-widths at base and tip
-  const halfBase = baseWidth * W * 0.5;
+  // In portrait (H > W) the screen is tall-and-narrow, so using raw W would make
+  // petals look razor-thin.  We compensate by blending W toward the geometric mean
+  // √(W·H) when the aspect ratio becomes portrait — this keeps landscape identical
+  // while giving portrait petals their proper fullness.
+  const refW     = H > W ? Math.sqrt(W * H) : W;
+  const halfBase = baseWidth * refW * 0.5;
   const halfTip  = halfBase  * tipSharp;
 
   // ─── The belly control points ───
