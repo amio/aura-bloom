@@ -52,7 +52,7 @@
     position: absolute;
     inset: 0;
     backdrop-filter: blur(40px) saturate(1.6);
-    -webkit-backdrop-filter: blur(40px) saturate(1.6);
+    -webkit-backdrop-filter: blur(10px) saturate(1.6);
     background: rgba(0, 0, 0, 0.35);
   }
   .screenshot-img {
@@ -134,13 +134,13 @@ const PATTERNS = [
         const norm = i / (n - 1);
         const angle = (-0.52 + norm * 1.04) * Math.PI; // 左→右 扇形
         // 呼吸：每片独立晃动
-        const breath = Math.sin(t * 0.00045 + norm * 3.1) * 0.042;
+        const breath = Math.sin(t * 0.00090 + norm * 3.1) * 0.075;
         const a = angle + breath;
         blades.push({
           cx, cy,
           angle: a,
-          length: 1.18 + Math.cos(t * 0.00035 + norm * 2.2) * 0.09,
-          belly: 0.42 + Math.sin(t * 0.00038 + norm * 2.5) * 0.10,
+          length: 1.18 + Math.cos(t * 0.00070 + norm * 2.2) * 0.15,
+          belly: 0.42 + Math.sin(t * 0.00076 + norm * 2.5) * 0.17,
           tipSharp: 0.08,   // 顶部收拢比例
           baseWidth: 0.14 + (1 - Math.abs(norm - 0.5) * 2) * 0.06,
         });
@@ -159,13 +159,13 @@ const PATTERNS = [
       for (let i = 0; i < count; i++) {
         const norm = i / (count - 1);
         const angle = (-0.38 + norm * 0.76) * Math.PI;
-        const breath = Math.sin(t * 0.0004 + norm * 2.4) * 0.050;
-        const sway   = Math.cos(t * 0.00028 + i) * 0.032;
+        const breath = Math.sin(t * 0.0008 + norm * 2.4) * 0.088;
+        const sway   = Math.cos(t * 0.00056 + i) * 0.058;
         blades.push({
           cx, cy,
           angle: angle + breath + sway,
-          length: 1.22 + Math.sin(t * 0.00032 + norm * 1.8) * 0.08,
-          belly: 0.58 + Math.cos(t * 0.00036 + norm * 2.2) * 0.10,
+          length: 1.22 + Math.sin(t * 0.00064 + norm * 1.8) * 0.14,
+          belly: 0.58 + Math.cos(t * 0.00072 + norm * 2.2) * 0.17,
           tipSharp: 0.04,
           baseWidth: 0.21 - Math.abs(norm - 0.5) * 0.06,
         });
@@ -211,14 +211,14 @@ const PATTERNS = [
         const norm = i / (count - 1);
         // 角度范围更宽，包含接近垂直的花瓣
         const angle = (-0.65 + norm * 1.30) * Math.PI;
-        const breath = Math.sin(t * 0.00038 + norm * 2.8) * 0.044;
-        const sway   = Math.cos(t * 0.00026 + norm * 1.6) * 0.020;
+        const breath = Math.sin(t * 0.00076 + norm * 2.8) * 0.078;
+        const sway   = Math.cos(t * 0.00052 + norm * 1.6) * 0.038;
         // 顶部开放：belly 在中间最大，两侧收窄
-        const belly = 0.50 - Math.abs(norm - 0.5) * 0.30 + Math.sin(t * 0.00042 + norm * 3.0) * 0.10;
+        const belly = 0.50 - Math.abs(norm - 0.5) * 0.30 + Math.sin(t * 0.00084 + norm * 3.0) * 0.17;
         blades.push({
           cx, cy,
           angle: angle + breath + sway,
-          length: 1.05 + Math.abs(norm - 0.5) * 0.20 + Math.cos(t * 0.00030 + norm * 2.0) * 0.07,
+          length: 1.05 + Math.abs(norm - 0.5) * 0.20 + Math.cos(t * 0.00060 + norm * 2.0) * 0.12,
           belly,
           tipSharp: 0.12,   // 顶部比较尖
           baseWidth: 0.11 + (1 - Math.abs(norm - 0.5) * 2) * 0.04,
@@ -239,13 +239,13 @@ const PATTERNS = [
         // 非对称扇形：右侧花瓣更多、更密
         const angle = (-0.44 + norm * 1.05) * Math.PI;
         // 羽毛的"飘动"振幅更大
-        const flutter = Math.sin(t * 0.0006 + norm * 5.5) * 0.060;
-        const drift   = Math.cos(t * 0.00022 + norm * 1.8) * 0.028;
+        const flutter = Math.sin(t * 0.0012 + norm * 5.5) * 0.105;
+        const drift   = Math.cos(t * 0.00044 + norm * 1.8) * 0.050;
         blades.push({
           cx, cy,
           angle: angle + flutter + drift,
-          length: 1.28 - Math.abs(norm - 0.5) * 0.3 + Math.sin(t * 0.00050 + norm * 4.0) * 0.08,
-          belly: 0.22 + Math.sin(t * 0.00055 + norm * 3.5) * 0.08,
+          length: 1.28 - Math.abs(norm - 0.5) * 0.3 + Math.sin(t * 0.00100 + norm * 4.0) * 0.13,
+          belly: 0.22 + Math.sin(t * 0.00110 + norm * 3.5) * 0.13,
           tipSharp: 0.03,     // 顶部非常细
           baseWidth: 0.07 + (1 - Math.abs(norm - 0.5) * 2) * 0.04,
         });
