@@ -26,10 +26,54 @@
   .t-dot::after { content:''; position:absolute; inset:3px; border-radius:50%; background: inherit; filter: brightness(1.4); }
 
   .label { color: rgba(255,255,255,0.22); font-size: 11px; letter-spacing: 3px; text-transform: uppercase; user-select: none; }
+
+  /* ── Screenshot overlay ── */
+  .screenshot-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  .screenshot-frame {
+    position: relative;
+    max-width: min(720px, 90vw);
+    max-height: 85vh;
+    line-height: 0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .screenshot-blur-bg {
+    position: absolute;
+    inset: 0;
+    backdrop-filter: blur(40px) saturate(1.6);
+    -webkit-backdrop-filter: blur(40px) saturate(1.6);
+    background: rgba(0, 0, 0, 0.35);
+  }
+  .screenshot-img {
+    position: relative;
+    z-index: 1;
+    max-width: min(720px, 90vw);
+    max-height: 85vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    display: block;
+    opacity: 0.75;
+  }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+
+<div class="screenshot-overlay">
+  <div class="screenshot-frame">
+    <div class="screenshot-blur-bg"></div>
+    <img class="screenshot-img" src="naive-screenshot.png" alt="Screenshot" />
+  </div>
+</div>
 
 <div class="ui">
   <div class="label" id="lbl">Monterey · Bloom</div>
